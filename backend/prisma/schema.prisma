@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model auditoria {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id       String?   @db.Uuid
+  tabla_afectada   String    @db.VarChar(100)
+  accion           String    @db.VarChar(10)
+  datos_anteriores Json?
+  datos_nuevos     Json?
+  ip_address       String?   @db.VarChar(45)
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  usuarios         usuarios? @relation(fields: [usuario_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_auditoria_fecha")
+  @@index([usuario_id], map: "idx_auditoria_usuario")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model encargados_piso {
+  id                                              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id                                      String    @db.Uuid
+  piso_id                                         String    @db.Uuid
+  asignado_por                                    String?   @db.Uuid
+  asignado_at                                     DateTime  @default(now()) @db.Timestamp(6)
+  activo                                          Boolean   @default(true)
+  usuarios_encargados_piso_asignado_porTousuarios usuarios? @relation("encargados_piso_asignado_porTousuarios", fields: [asignado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pisos                                           pisos     @relation(fields: [piso_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios_encargados_piso_usuario_idTousuarios   usuarios  @relation("encargados_piso_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([usuario_id, piso_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model equipos {
+  id                String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  laboratorio_id    String        @db.Uuid
+  nombre            String        @db.VarChar(150)
+  codigo            String        @unique @db.VarChar(30)
+  marca             String?       @db.VarChar(100)
+  modelo            String?       @db.VarChar(100)
+  numero_serie      String?       @db.VarChar(100)
+  estado            String        @default("operativo") @db.VarChar(20)
+  fecha_adquisicion DateTime?     @db.Date
+  descripcion       String?
+  activo            Boolean       @default(true)
+  created_at        DateTime      @default(now()) @db.Timestamp(6)
+  updated_at        DateTime      @default(now()) @db.Timestamp(6)
+  laboratorios      laboratorios  @relation(fields: [laboratorio_id], references: [id], onUpdate: NoAction)
+  incidencias       incidencias[]
+
+  @@index([laboratorio_id], map: "idx_equipos_laboratorio")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model horarios {
+  id                String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  laboratorio_id    String       @db.Uuid
+  docente_id        String       @db.Uuid
+  dia_semana        String       @db.VarChar(10)
+  hora_inicio       DateTime     @db.Time(6)
+  hora_fin          DateTime     @db.Time(6)
+  materia           String       @db.VarChar(200)
+  periodo_academico String       @db.VarChar(50)
+  activo            Boolean      @default(true)
+  created_at        DateTime     @default(now()) @db.Timestamp(6)
+  usuarios          usuarios     @relation(fields: [docente_id], references: [id], onUpdate: NoAction)
+  laboratorios      laboratorios @relation(fields: [laboratorio_id], references: [id], onUpdate: NoAction)
+
+  @@index([docente_id], map: "idx_horarios_docente")
+  @@index([laboratorio_id], map: "idx_horarios_laboratorio")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model incidencias {
+  id                                           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  equipo_id                                    String    @db.Uuid
+  reportado_por                                String    @db.Uuid
+  asignado_a                                   String?   @db.Uuid
+  tipo                                         String    @db.VarChar(50)
+  descripcion                                  String
+  estado                                       String    @default("abierta") @db.VarChar(20)
+  prioridad                                    String    @default("media") @db.VarChar(10)
+  created_at                                   DateTime  @default(now()) @db.Timestamp(6)
+  updated_at                                   DateTime  @default(now()) @db.Timestamp(6)
+  resuelto_at                                  DateTime? @db.Timestamp(6)
+  usuarios_incidencias_asignado_aTousuarios    usuarios? @relation("incidencias_asignado_aTousuarios", fields: [asignado_a], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipos                                      equipos   @relation(fields: [equipo_id], references: [id], onUpdate: NoAction)
+  usuarios_incidencias_reportado_porTousuarios usuarios  @relation("incidencias_reportado_porTousuarios", fields: [reportado_por], references: [id], onUpdate: NoAction)
+
+  @@index([equipo_id], map: "idx_incidencias_equipo")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model laboratorios {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  piso_id     String     @db.Uuid
+  nombre      String     @db.VarChar(150)
+  codigo      String     @unique @db.VarChar(20)
+  capacidad   Int        @default(30)
+  estado      String     @default("disponible") @db.VarChar(20)
+  descripcion String?
+  activo      Boolean    @default(true)
+  created_at  DateTime   @default(now()) @db.Timestamp(6)
+  updated_at  DateTime   @default(now()) @db.Timestamp(6)
+  equipos     equipos[]
+  horarios    horarios[]
+  pisos       pisos      @relation(fields: [piso_id], references: [id], onUpdate: NoAction)
+  reservas    reservas[]
+
+  @@index([piso_id], map: "idx_laboratorios_piso")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pisos {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nombre          String            @db.VarChar(100)
+  numero_piso     Int               @unique
+  descripcion     String?
+  activo          Boolean           @default(true)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  encargados_piso encargados_piso[]
+  laboratorios    laboratorios[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model reservas {
+  id                                         String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  laboratorio_id                             String       @db.Uuid
+  solicitante_id                             String       @db.Uuid
+  aprobado_por                               String?      @db.Uuid
+  fecha_inicio                               DateTime     @db.Timestamp(6)
+  fecha_fin                                  DateTime     @db.Timestamp(6)
+  motivo                                     String       @db.VarChar(300)
+  estado                                     String       @default("pendiente") @db.VarChar(20)
+  observaciones                              String?
+  created_at                                 DateTime     @default(now()) @db.Timestamp(6)
+  updated_at                                 DateTime     @default(now()) @db.Timestamp(6)
+  usuarios_reservas_aprobado_porTousuarios   usuarios?    @relation("reservas_aprobado_porTousuarios", fields: [aprobado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratorios                               laboratorios @relation(fields: [laboratorio_id], references: [id], onUpdate: NoAction)
+  usuarios_reservas_solicitante_idTousuarios usuarios     @relation("reservas_solicitante_idTousuarios", fields: [solicitante_id], references: [id], onUpdate: NoAction)
+
+  @@index([estado], map: "idx_reservas_estado")
+  @@index([laboratorio_id], map: "idx_reservas_laboratorio")
+  @@index([solicitante_id], map: "idx_reservas_solicitante")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model roles {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nombre        String          @unique @db.VarChar(50)
+  descripcion   String?
+  activo        Boolean         @default(true)
+  created_at    DateTime        @default(now()) @db.Timestamp(6)
+  updated_at    DateTime        @default(now()) @db.Timestamp(6)
+  usuario_roles usuario_roles[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model usuario_roles {
+  id                                            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id                                    String    @db.Uuid
+  rol_id                                        String    @db.Uuid
+  asignado_por                                  String?   @db.Uuid
+  asignado_at                                   DateTime  @default(now()) @db.Timestamp(6)
+  activo                                        Boolean   @default(true)
+  usuarios_usuario_roles_asignado_porTousuarios usuarios? @relation("usuario_roles_asignado_porTousuarios", fields: [asignado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roles                                         roles     @relation(fields: [rol_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios_usuario_roles_usuario_idTousuarios   usuarios  @relation("usuario_roles_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([usuario_id, rol_id])
+  @@index([rol_id], map: "idx_usuario_roles_rol")
+  @@index([usuario_id], map: "idx_usuario_roles_usuario")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model usuarios {
+  id                                                     String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cedula                                                 String            @unique @db.VarChar(20)
+  nombre                                                 String            @db.VarChar(100)
+  apellido                                               String            @db.VarChar(100)
+  email                                                  String            @unique @db.VarChar(150)
+  password_hash                                          String            @db.VarChar(255)
+  telefono                                               String?           @db.VarChar(20)
+  foto_url                                               String?           @db.VarChar(500)
+  activo                                                 Boolean           @default(true)
+  created_at                                             DateTime          @default(now()) @db.Timestamp(6)
+  updated_at                                             DateTime          @default(now()) @db.Timestamp(6)
+  username                                               String?           @unique @db.VarChar(50)
+  celular1                                               String?           @db.VarChar(15)
+  celular2                                               String?           @db.VarChar(15)
+  auditoria                                              auditoria[]
+  encargados_piso_encargados_piso_asignado_porTousuarios encargados_piso[] @relation("encargados_piso_asignado_porTousuarios")
+  encargados_piso_encargados_piso_usuario_idTousuarios   encargados_piso[] @relation("encargados_piso_usuario_idTousuarios")
+  horarios                                               horarios[]
+  incidencias_incidencias_asignado_aTousuarios           incidencias[]     @relation("incidencias_asignado_aTousuarios")
+  incidencias_incidencias_reportado_porTousuarios        incidencias[]     @relation("incidencias_reportado_porTousuarios")
+  reservas_reservas_aprobado_porTousuarios               reservas[]        @relation("reservas_aprobado_porTousuarios")
+  reservas_reservas_solicitante_idTousuarios             reservas[]        @relation("reservas_solicitante_idTousuarios")
+  usuario_roles_usuario_roles_asignado_porTousuarios     usuario_roles[]   @relation("usuario_roles_asignado_porTousuarios")
+  usuario_roles_usuario_roles_usuario_idTousuarios       usuario_roles[]   @relation("usuario_roles_usuario_idTousuarios")
+}
