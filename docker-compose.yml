@@ -1,26 +1,78 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: ga_postgres
     restart: unless-stopped
 
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: gestion_laboratorios
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
 
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gestion_laboratorios"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
 
+    networks:
+      - ga_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: ga_backend
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      PORT: 3000
+
+    ports:
+      - "${BACKEND_PORT}:3000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - ga_network
+
+  portainer:
+    image: portainer/portainer-ce:lts
+    container_name: ga_portainer
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+      - "${PORTAINER_PORT}:9443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+    networks:
+      - ga_network
+
 volumes:
   postgres_data:
+  portainer_data:
+
+networks:
+  ga_network:
+    driver: bridge
