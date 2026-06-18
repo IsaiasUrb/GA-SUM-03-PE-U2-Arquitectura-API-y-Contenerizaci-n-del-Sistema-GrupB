@@ -29,4 +29,4 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 8001
 
-CMD node dist/src/main"]
+CMD node dist/src/main"
