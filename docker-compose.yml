@@ -3,53 +3,89 @@ services:
     image: postgres:16-alpine
     container_name: ga_postgres
     restart: unless-stopped
-
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-
     ports:
       - "${POSTGRES_PORT}:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
-
     networks:
       - ga_network
 
-  backend:
+  auth-service:
     build:
-      context: ./backend
+      context: ./auth-service
       dockerfile: Dockerfile
 
-    container_name: ga_backend
+    container_name: ga_auth_service
     restart: unless-stopped
+
+    command: sh -c "npx prisma db push && node dist/src/main.js"
 
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
-      PORT: 3000
-
-    ports:
-      - "${BACKEND_PORT}:3000"
-
+      PORT: 8001
+    expose:
+      - "8001"
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - ga_network
 
+  resource-service:
+    build:
+      context: ./resource-service
+      dockerfile: Dockerfile
+    container_name: ga_resource_service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: file:/app/data/dev.db
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 8002
+    expose:
+      - "8002"
+    volumes:
+      - resource_data:/app/data
+    networks:
+      - ga_network
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: ga_notification_service
+    restart: unless-stopped
+    environment:
+      PORT: 8003
+    expose:
+      - "8003"
+    networks:
+      - ga_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ga_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - auth-service
+      - resource-service
+      - notification-service
     networks:
       - ga_network
 
@@ -57,20 +93,19 @@ services:
     image: portainer/portainer-ce:lts
     container_name: ga_portainer
     restart: unless-stopped
-
     ports:
       - "8000:8000"
       - "${PORTAINER_PORT}:9443"
-
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
-
     networks:
       - ga_network
 
 volumes:
   postgres_data:
+  resource_data:
+  nginx_logs:
   portainer_data:
 
 networks:
