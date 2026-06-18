@@ -32,3 +32,6 @@ npm-debug.log*
 
 # Prisma generated
 **/generated/prisma
+
+# SQLite local (resource-service)
+resource-service/prisma/dev.db
